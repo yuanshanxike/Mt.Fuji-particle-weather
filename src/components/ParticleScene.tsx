@@ -2,6 +2,7 @@ import { useRef, useMemo, useEffect } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { getWeatherType } from '@/hooks/useWeather';
+import { useSunPosition } from '@/hooks/useSunPosition';
 
 interface ParticleSceneProps {
   weatherCode: number;
@@ -26,7 +27,7 @@ function getMountainHeight(x: number, z: number): number {
 }
 
 // Mountain Particles Component
-function MountainParticles() {
+function MountainParticles({ isNight }: { isNight?: boolean }) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const particleCount = 8000;
   
@@ -83,17 +84,27 @@ function MountainParticles() {
     
     meshRef.current.instanceMatrix.needsUpdate = true;
   });
+
+  // Set mountain color - darker at night
+  useEffect(() => {
+    if (!meshRef.current) return;
+    const color = new THREE.Color(isNight ? 0x2d3436 : 0xffffff);
+    for (let i = 0; i < particleCount; i++) {
+      meshRef.current.setColorAt(i, color);
+    }
+    meshRef.current.instanceColor!.needsUpdate = true;
+  }, [isNight]);
   
   return (
     <instancedMesh ref={meshRef} args={[undefined, undefined, particleCount]}>
       <sphereGeometry args={[1, 6, 6]} />
-      <meshBasicMaterial />
+      <meshPhongMaterial />
     </instancedMesh>
   );
 }
 
 // Water/Lake Particles Component
-function WaterParticles() {
+function WaterParticles({ isNight }: { isNight?: boolean }) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const particleCount = 4000;
   
@@ -118,7 +129,9 @@ function WaterParticles() {
   }, []);
   
   const dummy = useMemo(() => new THREE.Object3D(), []);
-  const colorWater = useMemo(() => new THREE.Color(0x4A90A4), []);
+  const colorWater = useMemo(() => {
+    return isNight ? new THREE.Color(0x1a3a4a) : new THREE.Color(0x4A90A4);
+  }, [isNight]);
   
   useFrame((state) => {
     if (!meshRef.current) return;
@@ -159,13 +172,13 @@ function WaterParticles() {
   return (
     <instancedMesh ref={meshRef} args={[undefined, undefined, particleCount]}>
       <sphereGeometry args={[1, 5, 5]} />
-      <meshBasicMaterial transparent opacity={0.7} />
+      <meshPhongMaterial transparent opacity={0.7} />
     </instancedMesh>
   );
 }
 
 // Cloud Particles Component
-function CloudParticles({ weatherCode }: { weatherCode: number }) {
+function CloudParticles({ weatherCode, isNight }: { weatherCode: number; isNight?: boolean }) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const particleCount = 1500;
   const weatherType = getWeatherType(weatherCode);
@@ -189,10 +202,16 @@ function CloudParticles({ weatherCode }: { weatherCode: number }) {
   
   const dummy = useMemo(() => new THREE.Object3D(), []);
   const colorCloud = useMemo(() => {
-    if (weatherType === 'rainy') return new THREE.Color(0x6B7280);
-    if (weatherType === 'cloudy') return new THREE.Color(0xD1D5DB);
-    return new THREE.Color(0xFFFFFF);
-  }, [weatherType]);
+    let baseColor;
+    if (weatherType === 'rainy') baseColor = new THREE.Color(0x6B7280);
+    else if (weatherType === 'cloudy') baseColor = new THREE.Color(0xD1D5DB);
+    else baseColor = new THREE.Color(0xFFFFFF);
+    
+    if (isNight) {
+      baseColor.multiplyScalar(0.4); // Darker at night
+    }
+    return baseColor;
+  }, [weatherType, isNight]);
   
   useFrame((state) => {
     if (!meshRef.current) return;
@@ -239,13 +258,13 @@ function CloudParticles({ weatherCode }: { weatherCode: number }) {
   return (
     <instancedMesh ref={meshRef} args={[undefined, undefined, particleCount]}>
       <sphereGeometry args={[1, 6, 6]} />
-      <meshBasicMaterial transparent opacity={0.6} />
+      <meshPhongMaterial transparent opacity={0.6} />
     </instancedMesh>
   );
 }
 
-// Weather Particles (Rain/Snow)
-function WeatherParticles({ weatherCode }: { weatherCode: number }) {
+// Weather particles (Rain/Snow)
+function WeatherParticles({ weatherCode, isNight }: { weatherCode: number; isNight?: boolean }) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const weatherType = getWeatherType(weatherCode);
   
@@ -271,10 +290,16 @@ function WeatherParticles({ weatherCode }: { weatherCode: number }) {
   
   const dummy = useMemo(() => new THREE.Object3D(), []);
   const color = useMemo(() => {
-    if (weatherType === 'rainy') return new THREE.Color(0x87CEEB);
-    if (weatherType === 'snowy') return new THREE.Color(0xFFFFFF);
-    return new THREE.Color(0xFFFFFF);
-  }, [weatherType]);
+    let baseColor;
+    if (weatherType === 'rainy') baseColor = new THREE.Color(0x87CEEB);
+    else if (weatherType === 'snowy') baseColor = new THREE.Color(0xFFFFFF);
+    else baseColor = new THREE.Color(0xFFFFFF);
+    
+    if (isNight) {
+      baseColor.multiplyScalar(0.6);
+    }
+    return baseColor;
+  }, [weatherType, isNight]);
   
   useFrame((state) => {
     if (!meshRef.current || particleCount === 0) return;
@@ -337,13 +362,13 @@ function WeatherParticles({ weatherCode }: { weatherCode: number }) {
   return (
     <instancedMesh ref={meshRef} args={[undefined, undefined, particleCount]}>
       <boxGeometry args={[1, 1, 1]} />
-      <meshBasicMaterial transparent opacity={0.7} />
+      <meshPhongMaterial transparent opacity={0.7} />
     </instancedMesh>
   );
 }
 
 // Ambient particles (for sunny weather)
-function AmbientParticles({ weatherCode }: { weatherCode: number }) {
+function AmbientParticles({ weatherCode, isNight }: { weatherCode: number; isNight?: boolean }) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const weatherType = getWeatherType(weatherCode);
   
@@ -366,7 +391,11 @@ function AmbientParticles({ weatherCode }: { weatherCode: number }) {
   }, [particleCount]);
   
   const dummy = useMemo(() => new THREE.Object3D(), []);
-  const color = useMemo(() => new THREE.Color(0xFFD700), []);
+  const color = useMemo(() => {
+    const baseColor = new THREE.Color(0xFFD700);
+    if (isNight) baseColor.setHex(0x5f5f5f);
+    return baseColor;
+  }, [isNight]);
   
   useFrame((state) => {
     if (!meshRef.current) return;
@@ -400,7 +429,7 @@ function AmbientParticles({ weatherCode }: { weatherCode: number }) {
   return (
     <instancedMesh ref={meshRef} args={[undefined, undefined, particleCount]}>
       <sphereGeometry args={[1, 4, 4]} />
-      <meshBasicMaterial transparent opacity={0.5} />
+      <meshPhongMaterial transparent opacity={0.5} />
     </instancedMesh>
   );
 }
@@ -437,34 +466,54 @@ function CameraController() {
 
 // Scene Content
 function SceneContent({ weatherCode }: { weatherCode: number }) {
+  const sun = useSunPosition();
+  
+  // Background and fog colors based on time of day
+  const bgColor = useMemo(() => {
+    if (sun.isNight) return '#0a0a23'; // Night: Dark navy
+    
+    // Check for Golden Hour (elevation is low but > 0)
+    // In useSunPosition, elevation < 0.2 is warm orange
+    // sun.position[1] is Y (elevation) * 100
+    const y = sun.position[1];
+    if (y > 0 && y < 20) return '#ff9e22'; // Golden Hour: Warm orange
+    
+    return '#87CEEB'; // Clear/Sunny Day: Sky blue
+  }, [sun.isNight, sun.position]);
+
   return (
     <>
       <CameraController />
       
       {/* Lighting */}
-      <ambientLight intensity={0.6} />
-      <directionalLight position={[10, 20, 10]} intensity={0.8} />
+      <ambientLight intensity={sun.ambientIntensity} />
+      <directionalLight 
+        position={sun.position} 
+        intensity={sun.intensity} 
+        color={sun.color}
+        castShadow
+      />
       
       {/* Mountain - made of particles */}
-      <MountainParticles />
+      <MountainParticles isNight={sun.isNight} />
       
       {/* Water - made of particles */}
-      <WaterParticles />
+      <WaterParticles isNight={sun.isNight} />
       
       {/* Clouds - made of particles */}
-      <CloudParticles weatherCode={weatherCode} />
+      <CloudParticles weatherCode={weatherCode} isNight={sun.isNight} />
       
       {/* Weather particles (rain/snow) */}
-      <WeatherParticles weatherCode={weatherCode} />
+      <WeatherParticles weatherCode={weatherCode} isNight={sun.isNight} />
       
       {/* Ambient particles */}
-      <AmbientParticles weatherCode={weatherCode} />
+      <AmbientParticles weatherCode={weatherCode} isNight={sun.isNight} />
       
       {/* Background gradient */}
-      <color attach="background" args={['#87CEEB']} />
+      <color attach="background" args={[bgColor]} />
       
       {/* Fog for depth */}
-      <fog attach="fog" args={['#87CEEB', 15, 50]} />
+      <fog attach="fog" args={[bgColor, 15, 50]} />
     </>
   );
 }
