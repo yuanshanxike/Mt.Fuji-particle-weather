@@ -81,9 +81,9 @@ export const useSunPosition = (): SunPosition => {
         }
       } else {
         // Night time (Moonlight)
-        intensity = 0.4;
-        color = '#b9c6d2';
-        ambientIntensity = 0.15;
+        intensity = 0.6; // Increased from 0.4
+        color = '#d0d9e1'; // Lighter silver
+        ambientIntensity = 0.25; // Increased from 0.15
       }
 
       setSunData({

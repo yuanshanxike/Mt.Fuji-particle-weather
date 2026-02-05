@@ -88,7 +88,7 @@ function MountainParticles({ isNight }: { isNight?: boolean }) {
   // Set mountain color - darker at night
   useEffect(() => {
     if (!meshRef.current) return;
-    const color = new THREE.Color(isNight ? 0x4a4e69 : 0xffffff);
+    const color = new THREE.Color(isNight ? 0x6a6e89 : 0xffffff);
     for (let i = 0; i < particleCount; i++) {
       meshRef.current.setColorAt(i, color);
     }
@@ -98,7 +98,7 @@ function MountainParticles({ isNight }: { isNight?: boolean }) {
   return (
     <instancedMesh ref={meshRef} args={[undefined, undefined, particleCount]}>
       <sphereGeometry args={[1, 6, 6]} />
-      <meshPhongMaterial />
+      <meshPhongMaterial emissive={isNight ? 0x111122 : 0x000000} />
     </instancedMesh>
   );
 }
