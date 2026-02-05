@@ -41,35 +41,31 @@ export const useSunPosition = (): SunPosition => {
       
       const angle = ((hours - 6) / 24) * 2 * Math.PI;
       
-      // Default view: Camera at X+, looking West (towards -X)
-      // East is at some direction. Let's map hours to a 3D orbit.
-      // At 6:00 (East), Sun should be at some position.
-      // If we are at X+ looking West (-X), then:
-      // -X is West
-      // +X is East
-      // +Y is Up
-      // +/-Z is North/South
-      
-      // We'll rotate in the XY plane for simplicity (Sun rises East +X, sets West -X)
-      // x = cos(angle), y = sin(angle)
-      // However, we want it to be highest at 12:00.
-      // At 12:00, hours=12, angle = (6/24)*2pi = pi/2. cos(pi/2)=0, sin(pi/2)=1. Correct (Up).
-      // At 6:00, hours=6, angle = 0. cos(0)=1, sin(0)=0. Correct (East/+X).
-      // At 18:00, hours=18, angle = pi. cos(pi)=-1, sin(pi)=0. Correct (West/-X).
-      
-      const x = Math.cos(angle) * 100;
-      const y = Math.sin(angle) * 100;
-      const z = 0; // Keeping it simple on the prime vertical for now
-
       const elevation = Math.sin(angle); // -1 to 1
       const isNight = elevation < 0;
       
-      // Intensity logic
+      // Calculate position
+      let x, y, z;
+      if (!isNight) {
+        // Sun position
+        x = Math.cos(angle) * 100;
+        y = Math.sin(angle) * 100;
+        z = 0;
+      } else {
+        // Moon position: 12-hour offset from sun
+        // angle + Math.PI gives the opposite position
+        const moonAngle = angle + Math.PI;
+        x = Math.cos(moonAngle) * 100;
+        y = Math.sin(moonAngle) * 100;
+        z = 0;
+      }
+
+      // Intensity and color logic
       let intensity = 0;
       let ambientIntensity = 0.1;
       let color = '#ffffff';
 
-      if (elevation > 0) {
+      if (!isNight) {
         // Day time
         intensity = Math.min(elevation * 1.5, 1);
         ambientIntensity = 0.2 + elevation * 0.4;
@@ -84,10 +80,10 @@ export const useSunPosition = (): SunPosition => {
           color = '#ffffff'; // White noon
         }
       } else {
-        // Night time
-        intensity = 0;
-        ambientIntensity = 0.05;
-        color = '#1a1a2e'; // Dark blue/purple night light
+        // Night time (Moonlight)
+        intensity = 0.4;
+        color = '#b9c6d2';
+        ambientIntensity = 0.15;
       }
 
       setSunData({

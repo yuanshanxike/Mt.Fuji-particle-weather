@@ -88,7 +88,7 @@ function MountainParticles({ isNight }: { isNight?: boolean }) {
   // Set mountain color - darker at night
   useEffect(() => {
     if (!meshRef.current) return;
-    const color = new THREE.Color(isNight ? 0x2d3436 : 0xffffff);
+    const color = new THREE.Color(isNight ? 0x4a4e69 : 0xffffff);
     for (let i = 0; i < particleCount; i++) {
       meshRef.current.setColorAt(i, color);
     }
@@ -130,7 +130,7 @@ function WaterParticles({ isNight }: { isNight?: boolean }) {
   
   const dummy = useMemo(() => new THREE.Object3D(), []);
   const colorWater = useMemo(() => {
-    return isNight ? new THREE.Color(0x1a3a4a) : new THREE.Color(0x4A90A4);
+    return isNight ? new THREE.Color(0x2a3a5a) : new THREE.Color(0x4A90A4);
   }, [isNight]);
   
   useFrame((state) => {
