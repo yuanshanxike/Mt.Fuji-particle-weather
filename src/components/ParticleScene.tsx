@@ -85,20 +85,32 @@ function MountainParticles({ isNight }: { isNight?: boolean }) {
     meshRef.current.instanceMatrix.needsUpdate = true;
   });
 
-  // Set mountain color - darker at night
+  // Set mountain color - darker at night with snow top
   useEffect(() => {
     if (!meshRef.current) return;
-    const color = new THREE.Color(isNight ? 0x6a6e89 : 0xffffff);
+    
+    const color = new THREE.Color();
+    const snowThreshold = 6; // Height threshold for snow top
+    
     for (let i = 0; i < particleCount; i++) {
+      const y = positions[i * 3 + 1];
+      
+      if (y > snowThreshold) {
+        // Snow top
+        color.set(isNight ? 0xd0d9e1 : 0xffffff);
+      } else {
+        // Mountain base
+        color.set(isNight ? 0x2d3436 : 0x4a4e69);
+      }
       meshRef.current.setColorAt(i, color);
     }
     meshRef.current.instanceColor!.needsUpdate = true;
-  }, [isNight]);
+  }, [isNight, positions]);
   
   return (
     <instancedMesh ref={meshRef} args={[undefined, undefined, particleCount]}>
-      <sphereGeometry args={[1, 6, 6]} />
-      <meshPhongMaterial emissive={isNight ? 0x111122 : 0x000000} />
+      <sphereGeometry args={[1, 4, 4]} />
+      <meshPhongMaterial emissive={isNight ? 0x050510 : 0x000000} />
     </instancedMesh>
   );
 }
