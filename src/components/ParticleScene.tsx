@@ -7,6 +7,7 @@ import { useSunPosition } from '@/hooks/useSunPosition';
 
 interface ParticleSceneProps {
   weatherCode: number;
+  useMesh?: boolean;
 }
 
 // Mount Fuji shape function - returns height at x, z position
@@ -34,6 +35,59 @@ function getMountainHeight(x: number, z: number): number {
   const asymmetry = Math.cos(angle) * 0.5;
   
   return Math.max(0, baseHeight + noise + asymmetry * 0.3);
+}
+
+// Mountain Mesh Component
+function MountainMesh({ isNight }: { isNight?: boolean }) {
+  const meshRef = useRef<THREE.Mesh>(null);
+  const segments = 128;
+  const size = 40;
+  
+  const { geometry, colors } = useMemo(() => {
+    const geo = new THREE.PlaneGeometry(size, size, segments, segments);
+    geo.rotateX(-Math.PI / 2); // Lay flat
+    
+    const pos = geo.attributes.position;
+    const colors = new Float32Array(pos.count * 3);
+    const snowThreshold = 6;
+    
+    const snowColorArr = isNight ? [0.81, 0.85, 0.88] : [1, 1, 1]; // #d0d9e1 vs #ffffff
+    const baseColorArr = isNight ? [0.17, 0.20, 0.21] : [0.29, 0.30, 0.41]; // #2d3436 vs #4a4e69
+
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i);
+      const z = pos.getZ(i);
+      const h = getMountainHeight(x, z);
+      
+      // We subtract 5 to match particle scene offset (y - 5)
+      pos.setY(i, h - 5);
+      
+      // Color based on height
+      const isSnow = h > snowThreshold;
+      const color = isSnow ? snowColorArr : baseColorArr;
+      
+      colors[i * 3] = color[0];
+      colors[i * 3 + 1] = color[1];
+      colors[i * 3 + 2] = color[2];
+    }
+    
+    geo.computeVertexNormals();
+    return { geometry: geo, colors };
+  }, [isNight]);
+
+  return (
+    <mesh ref={meshRef} geometry={geometry} receiveShadow castShadow>
+      <bufferAttribute
+        attach="geometry-attributes-color"
+        args={[colors, 3]}
+      />
+      <meshPhongMaterial 
+        vertexColors 
+        shininess={10} 
+        emissive={isNight ? 0x050510 : 0x000000}
+      />
+    </mesh>
+  );
 }
 
 // Mountain Particles Component
@@ -500,7 +554,7 @@ function CameraController() {
 }
 
 // Scene Content
-function SceneContent({ weatherCode }: { weatherCode: number }) {
+function SceneContent({ weatherCode, useMesh }: { weatherCode: number; useMesh?: boolean }) {
   const sun = useSunPosition();
   
   // Background and fog colors based on time of day
@@ -529,8 +583,12 @@ function SceneContent({ weatherCode }: { weatherCode: number }) {
         castShadow
       />
       
-      {/* Mountain - made of particles */}
-      <MountainParticles isNight={sun.isNight} />
+      {/* Mountain - Mesh or Particles */}
+      {useMesh ? (
+        <MountainMesh isNight={sun.isNight} />
+      ) : (
+        <MountainParticles isNight={sun.isNight} />
+      )}
       
       {/* Water - made of particles */}
       <WaterParticles isNight={sun.isNight} />
@@ -554,14 +612,15 @@ function SceneContent({ weatherCode }: { weatherCode: number }) {
 }
 
 // Main Particle Scene Component
-export default function ParticleScene({ weatherCode }: ParticleSceneProps) {
+export default function ParticleScene({ weatherCode, useMesh }: ParticleSceneProps) {
   return (
     <div className="absolute inset-0">
       <Canvas
         camera={{ position: [0, 2, 25], fov: 60 }}
         gl={{ antialias: true, alpha: true }}
+        shadows
       >
-        <SceneContent weatherCode={weatherCode} />
+        <SceneContent weatherCode={weatherCode} useMesh={useMesh} />
       </Canvas>
     </div>
   );

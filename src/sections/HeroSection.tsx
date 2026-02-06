@@ -1,9 +1,9 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import ParticleScene from '@/components/ParticleScene';
 import type { WeatherData } from '@/hooks/useWeather';
-import { Cloud, Eye, Wind } from 'lucide-react';
+import { Cloud, Eye, Wind, Layers, Boxes } from 'lucide-react';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -17,6 +17,7 @@ export default function HeroSection({ weather }: HeroSectionProps) {
   const subtitleRef = useRef<HTMLParagraphElement>(null);
   const cardsRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
+  const [useMesh, setUseMesh] = useState(false);
 
   useEffect(() => {
     const section = sectionRef.current;
@@ -108,7 +109,7 @@ export default function HeroSection({ weather }: HeroSectionProps) {
     >
       {/* 3D Particle Scene - Mountain, Water, Clouds */}
       {!weather.loading && (
-        <ParticleScene weatherCode={weather.weatherCode} />
+        <ParticleScene weatherCode={weather.weatherCode} useMesh={useMesh} />
       )}
 
       {/* Loading State */}
@@ -119,6 +120,17 @@ export default function HeroSection({ weather }: HeroSectionProps) {
           </div>
         </div>
       )}
+
+      {/* Toggle UI */}
+      <div className="absolute top-6 right-6 z-40 flex gap-2">
+        <button
+          onClick={() => setUseMesh(!useMesh)}
+          className="flex items-center gap-2 bg-white/10 backdrop-blur-xl border border-white/20 hover:bg-white/20 transition-all px-4 py-2 rounded-full text-white text-sm font-medium shadow-2xl"
+        >
+          {useMesh ? <Layers className="w-4 h-4" /> : <Boxes className="w-4 h-4" />}
+          <span>切换至{useMesh ? '粒子' : '网格'}</span>
+        </button>
+      </div>
 
       {/* Content Overlay */}
       <div
