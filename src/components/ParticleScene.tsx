@@ -13,9 +13,18 @@ function getMountainHeight(x: number, z: number): number {
   const distance = Math.sqrt(x * x + z * z);
   const angle = Math.atan2(z, x);
   
-  // Base mountain shape - conical with some asymmetry
+  // Base mountain shape - conical
   let baseHeight = Math.max(0, 15 - distance * 0.8);
   
+  // Add crater effect (Mt. Fuji's summit is a caldera)
+  // If we are close to the center and high up, we "carve out" a crater
+  const craterRadius = 1.8;
+  const craterDepth = 1.2;
+  if (distance < craterRadius && baseHeight > 13) {
+    const craterFactor = 1 - Math.cos((distance / craterRadius) * (Math.PI / 2));
+    baseHeight -= (1 - craterFactor) * craterDepth;
+  }
+
   // Add some noise/irregularity
   const noise = Math.sin(x * 2) * Math.cos(z * 2) * 0.3 + 
                 Math.sin(x * 5 + z * 3) * 0.1;
