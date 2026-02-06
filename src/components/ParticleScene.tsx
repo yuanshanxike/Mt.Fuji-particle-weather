@@ -1,5 +1,6 @@
 import { useRef, useMemo, useEffect } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { Clouds, Cloud } from '@react-three/drei';
 import * as THREE from 'three';
 import { getWeatherType } from '@/hooks/useWeather';
 import { useSunPosition } from '@/hooks/useSunPosition';
@@ -177,89 +178,102 @@ function WaterParticles({ isNight }: { isNight?: boolean }) {
   );
 }
 
-// Cloud Particles Component
-function CloudParticles({ weatherCode, isNight }: { weatherCode: number; isNight?: boolean }) {
-  const meshRef = useRef<THREE.InstancedMesh>(null);
-  const particleCount = 1500;
+// Volumetric Cloud Component
+function VolumetricClouds({ weatherCode, isNight }: { weatherCode: number; isNight?: boolean }) {
+  const groupRef = useRef<THREE.Group>(null);
   const weatherType = getWeatherType(weatherCode);
   
-  const initialPositions = useMemo(() => {
-    const arr: number[] = [];
-    
-    for (let i = 0; i < particleCount; i++) {
-      // Clouds around mountain
-      const angle = Math.random() * Math.PI * 2;
-      const radius = 5 + Math.random() * 15;
-      const x = Math.cos(angle) * radius;
-      const z = Math.sin(angle) * radius;
-      const y = 8 + Math.random() * 6;
-      
-      arr.push(x, y, z);
+  const config = useMemo(() => {
+    // Default: Sunny
+    let segments = 20;
+    let bounds: [number, number, number] = [30, 4, 30];
+    let volume = 10;
+    let color = new THREE.Color('#fff8db'); // Warm white
+    let opacity = 0.5;
+    let driftSpeed = 0.2; // Speed of the group moving
+    let cloudSpeed = 0.1; // Internal animation speed
+    let growth = 4;
+    let position: [number, number, number] = [0, 12, 0];
+
+    if (weatherType === 'rainy') {
+      segments = 60;
+      volume = 15;
+      color.set('#5a6473'); // Dark slate gray
+      opacity = 0.8;
+      driftSpeed = 1.0;
+      cloudSpeed = 0.5;
+      growth = 6;
+      position = [0, 10, 0]; // Lower clouds
+    } else if (weatherType === 'cloudy') {
+      segments = 50;
+      volume = 12;
+      color.set('#c4c4c4'); // Light gray
+      opacity = 0.7;
+      driftSpeed = 0.5;
+      cloudSpeed = 0.2;
+      growth = 5;
+    } else if (weatherType === 'snowy') {
+      segments = 40;
+      volume = 12;
+      color.set('#e8ebed');
+      opacity = 0.7;
+      driftSpeed = 0.3;
+      cloudSpeed = 0.1;
+      growth = 5;
     }
-    
-    return arr;
-  }, []);
-  
-  const dummy = useMemo(() => new THREE.Object3D(), []);
-  const colorCloud = useMemo(() => {
-    let baseColor;
-    if (weatherType === 'rainy') baseColor = new THREE.Color(0x6B7280);
-    else if (weatherType === 'cloudy') baseColor = new THREE.Color(0xD1D5DB);
-    else baseColor = new THREE.Color(0xFFFFFF);
-    
+
     if (isNight) {
-      baseColor.multiplyScalar(0.4); // Darker at night
+      // Nighttime adjustments
+      color.multiplyScalar(0.15); // Much darker
+      opacity *= 0.6; // Less visible
     }
-    return baseColor;
+
+    return { segments, bounds, volume, color, opacity, driftSpeed, cloudSpeed, growth, position };
   }, [weatherType, isNight]);
-  
-  useFrame((state) => {
-    if (!meshRef.current) return;
-    
-    const time = state.clock.elapsedTime;
-    
-    for (let i = 0; i < particleCount; i++) {
-      const idx = i * 3;
-      const initialX = initialPositions[idx];
-      const initialY = initialPositions[idx + 1];
-      const initialZ = initialPositions[idx + 2];
+
+  useFrame((_, delta) => {
+    if (groupRef.current) {
+      // Drift the entire cloud system
+      groupRef.current.position.x += config.driftSpeed * delta;
       
-      // Cloud drift
-      const driftX = Math.sin(time * 0.1 + i * 0.01) * 0.5;
-      const driftZ = Math.cos(time * 0.08 + i * 0.01) * 0.3;
-      
-      dummy.position.set(
-        initialX + driftX + time * 0.2, // Move with time
-        initialY + Math.sin(time * 0.2 + i * 0.1) * 0.2,
-        initialZ + driftZ
-      );
-      
-      // Wrap around
-      if (dummy.position.x > 25) {
-        dummy.position.x -= 50;
+      // Wrap around for continuous drift
+      if (groupRef.current.position.x > 30) {
+        groupRef.current.position.x = -30;
       }
-      
-      dummy.scale.setScalar(0.15 + Math.sin(time + i) * 0.03);
-      dummy.updateMatrix();
-      meshRef.current!.setMatrixAt(i, dummy.matrix);
     }
-    
-    meshRef.current.instanceMatrix.needsUpdate = true;
   });
-  
-  useEffect(() => {
-    if (!meshRef.current) return;
-    for (let i = 0; i < particleCount; i++) {
-      meshRef.current.setColorAt(i, colorCloud);
-    }
-    meshRef.current.instanceColor!.needsUpdate = true;
-  }, [colorCloud]);
-  
+
   return (
-    <instancedMesh ref={meshRef} args={[undefined, undefined, particleCount]}>
-      <sphereGeometry args={[1, 6, 6]} />
-      <meshPhongMaterial transparent opacity={0.6} />
-    </instancedMesh>
+    <group ref={groupRef} position={new THREE.Vector3(...config.position)}>
+      <Clouds material={THREE.MeshLambertMaterial} limit={400}>
+        <Cloud
+          seed={1}
+          segments={config.segments}
+          bounds={config.bounds}
+          volume={config.volume}
+          color={config.color}
+          opacity={config.opacity}
+          growth={config.growth}
+          speed={config.cloudSpeed}
+          fade={10}
+        />
+        {/* Second layer for depth if not sunny */}
+        {weatherType !== 'sunny' && (
+          <Cloud
+            seed={2}
+            segments={config.segments / 2}
+            bounds={[config.bounds[0], config.bounds[1] * 1.5, config.bounds[2]]}
+            volume={config.volume}
+            color={config.color}
+            opacity={config.opacity * 0.8}
+            growth={config.growth * 1.2}
+            position={[5, 2, 5]}
+            speed={config.cloudSpeed}
+            fade={10}
+          />
+        )}
+      </Clouds>
+    </group>
   );
 }
 
@@ -500,8 +514,8 @@ function SceneContent({ weatherCode }: { weatherCode: number }) {
       {/* Water - made of particles */}
       <WaterParticles isNight={sun.isNight} />
       
-      {/* Clouds - made of particles */}
-      <CloudParticles weatherCode={weatherCode} isNight={sun.isNight} />
+      {/* Clouds - Volumetric */}
+      <VolumetricClouds weatherCode={weatherCode} isNight={sun.isNight} />
       
       {/* Weather particles (rain/snow) */}
       <WeatherParticles weatherCode={weatherCode} isNight={sun.isNight} />
