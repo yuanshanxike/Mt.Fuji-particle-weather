@@ -645,13 +645,25 @@ function CameraController() {
       const deltaY = touchStartY - touchY; // Positive = swipe up (scroll down)
       
       // Determine mode if not set
-      if (!touchMode && Math.abs(deltaY) > 2) {
-        if (deltaY > 0) { // Trying to scroll down
-          // If not at max zoom out, lock to camera
-          touchMode = zoomRef.current > -1.001 ? 'camera' : 'scroll';
-        } else { // Trying to scroll up
-          // If page is at top AND not at max zoom in, lock to camera
-          touchMode = (window.scrollY <= 10 && zoomRef.current < 0.999) ? 'camera' : 'scroll';
+      if (!touchMode && Math.abs(deltaY) > 5) {
+        const isTryingToScrollDown = deltaY > 0;
+        const isTryingToScrollUp = deltaY < 0;
+
+        if (isTryingToScrollDown) {
+          // If already zoomed out to the max, allow normal page scroll
+          if (zoomRef.current <= -0.95) {
+            touchMode = 'scroll';
+          } else {
+            touchMode = 'camera';
+          }
+        } else if (isTryingToScrollUp) {
+          // If page is already scrolled down, let it scroll back up naturally
+          if (window.scrollY > 10) {
+            touchMode = 'scroll';
+          } else {
+            // If at top of page, handle camera zoom-in
+            touchMode = zoomRef.current < 0.95 ? 'camera' : 'scroll';
+          }
         }
       }
 
@@ -661,6 +673,8 @@ function CameraController() {
         } else { // Zooming in
           zoomRef.current = Math.min(1, zoomRef.current - deltaY * 0.005);
         }
+        
+        // Only prevent default if we are actually zooming
         if (e.cancelable) e.preventDefault();
       }
       
