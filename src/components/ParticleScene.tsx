@@ -142,30 +142,44 @@ function MountainMeshFlat({ isNight }: { isNight?: boolean }) {
   );
 }
 
-// Water/Lake Particles Component
-function WaterParticles({ isNight }: { isNight?: boolean }) {
+// Lake configuration representing the Fuji Five Lakes
+// Camera is at (0, 2, 25) looking at (0, 3, 0), so +Z is South, -Z is North.
+const LAKE_DATA = [
+  { name: 'Yamanakako', x: 12, z: 5, width: 6, depth: 8, count: 1200 }, // ESE
+  { name: 'Kawaguchiko', x: 2, z: -10, width: 10, depth: 5, count: 1500 }, // N
+  { name: 'Saiko', x: -6, z: -10, width: 5, depth: 4, count: 800 }, // NNW
+  { name: 'Shojiko', x: -10, z: -8, width: 3, depth: 3, count: 500 }, // NW
+  { name: 'Motosuko', x: -14, z: -5, width: 5, depth: 6, count: 1000 }, // WNW
+];
+
+// Single Lake Component
+function LakeParticles({ x: lakeX, z: lakeZ, width, depth, count, isNight }: { 
+  x: number; z: number; width: number; depth: number; count: number; isNight?: boolean 
+}) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
-  const particleCount = 4000;
   
   const { positions, initialY } = useMemo(() => {
     const positions: number[] = [];
     const initialY: number[] = [];
     
-    for (let i = 0; i < particleCount; i++) {
-      // Create a lake in front of the mountain
-      const angle = Math.random() * Math.PI;
-      const radius = 3 + Math.random() * 12;
-      const x = Math.cos(angle + Math.PI) * radius;
-      const z = Math.sin(angle + Math.PI) * radius + 8;
+    for (let i = 0; i < count; i++) {
+      // Create an oval/organic shape for each lake
+      const angle = Math.random() * Math.PI * 2;
+      const r = Math.sqrt(Math.random()); // Uniform distribution in circle
       
-      const y = -5 + Math.random() * 0.3;
+      const localX = r * Math.cos(angle) * (width / 2);
+      const localZ = r * Math.sin(angle) * (depth / 2);
       
-      positions.push(x, y, z);
-      initialY.push(y);
+      const posX = lakeX + localX;
+      const posZ = lakeZ + localZ;
+      const posY = -5 + Math.random() * 0.2; // Slightly varied water level
+      
+      positions.push(posX, posY, posZ);
+      initialY.push(posY);
     }
     
     return { positions, initialY };
-  }, []);
+  }, [lakeX, lakeZ, width, depth, count]);
   
   const dummy = useMemo(() => new THREE.Object3D(), []);
   const colorWater = useMemo(() => {
@@ -177,19 +191,19 @@ function WaterParticles({ isNight }: { isNight?: boolean }) {
     
     const time = state.clock.elapsedTime;
     
-    for (let i = 0; i < particleCount; i++) {
+    for (let i = 0; i < count; i++) {
       const idx = i * 3;
-      const x = positions[idx];
-      const z = positions[idx + 2];
+      const px = positions[idx];
+      const pz = positions[idx + 2];
       
       // Gentle wave motion
-      const waveY = Math.sin(time * 0.8 + x * 0.5 + z * 0.3) * 0.08 +
-                    Math.sin(time * 0.5 + x * 0.3) * 0.05;
+      const waveY = Math.sin(time * 0.8 + px * 0.5 + pz * 0.3) * 0.08 +
+                    Math.sin(time * 0.5 + px * 0.3) * 0.05;
       
       dummy.position.set(
-        x,
+        px,
         initialY[i] + waveY,
-        z
+        pz
       );
       dummy.scale.setScalar(0.1);
       dummy.updateMatrix();
@@ -202,17 +216,111 @@ function WaterParticles({ isNight }: { isNight?: boolean }) {
   // Set water color
   useEffect(() => {
     if (!meshRef.current) return;
-    for (let i = 0; i < particleCount; i++) {
+    for (let i = 0; i < count; i++) {
       meshRef.current.setColorAt(i, colorWater);
     }
     meshRef.current.instanceColor!.needsUpdate = true;
-  }, [colorWater]);
+  }, [colorWater, count]);
   
   return (
-    <instancedMesh ref={meshRef} args={[undefined, undefined, particleCount]}>
+    <instancedMesh ref={meshRef} args={[undefined, undefined, count]}>
       <sphereGeometry args={[1, 5, 5]} />
       <meshPhongMaterial transparent opacity={0.7} />
     </instancedMesh>
+  );
+}
+
+// Main Water Component wrapping all lakes
+function WaterParticles({ isNight }: { isNight?: boolean }) {
+  return (
+    <>
+      {LAKE_DATA.map((lake) => (
+        <LakeParticles
+          key={lake.name}
+          x={lake.x}
+          z={lake.z}
+          width={lake.width}
+          depth={lake.depth}
+          count={lake.count}
+          isNight={isNight}
+        />
+      ))}
+    </>
+  );
+}
+
+// Surrounding Land Mesh
+function LandMesh({ isNight }: { isNight?: boolean }) {
+  const meshRef = useRef<THREE.Mesh>(null);
+  const segments = 64;
+  const size = 100; // Larger than mountain to fill horizon
+  
+  const { geometry, colors } = useMemo(() => {
+    const geo = new THREE.PlaneGeometry(size, size, segments, segments);
+    geo.rotateX(-Math.PI / 2);
+    
+    const pos = geo.attributes.position;
+    const colors = new Float32Array(pos.count * 3);
+    
+    // Earthy tones
+    // Day: #3d405b (Neutral dark blue-grey/earth)
+    // Night: #1a1c29 (Darker)
+    const baseColorDay = new THREE.Color('#3d405b');
+    const baseColorNight = new THREE.Color('#1a1c29');
+    
+    // Secondary tone for variation (slightly lighter)
+    const varColorDay = new THREE.Color('#555975');
+    const varColorNight = new THREE.Color('#252838');
+
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i);
+      const z = pos.getZ(i);
+      const dist = Math.sqrt(x * x + z * z);
+      
+      // Gentle rolling hills, low frequency
+      let h = Math.sin(x * 0.1) * Math.cos(z * 0.1) * 1.5 +
+              Math.sin(x * 0.3 + z * 0.2) * 0.5;
+              
+      // Flatten near the mountain base (radius < 20) to blend
+      if (dist < 20) {
+        h *= (dist / 20) * (dist / 20); // Smooth falloff to 0 at center
+      }
+      
+      // Position at base level (-5)
+      // We position it slightly above -5 (-4.8) to cover the flat "skirt" of the MountainMesh
+      // which sits at -5.0. The mountain cone will rise out of this land.
+      pos.setY(i, h - 4.8); 
+      
+      // Color variation based on height
+      const noise = Math.random();
+      const isVar = h > 0.5 || noise > 0.7;
+      
+      const c1 = isNight ? baseColorNight : baseColorDay;
+      const c2 = isNight ? varColorNight : varColorDay;
+      const finalColor = isVar ? c2 : c1;
+      
+      colors[i * 3] = finalColor.r;
+      colors[i * 3 + 1] = finalColor.g;
+      colors[i * 3 + 2] = finalColor.b;
+    }
+    
+    geo.computeVertexNormals();
+    return { geometry: geo, colors };
+  }, [isNight]);
+
+  return (
+    <mesh ref={meshRef} geometry={geometry} receiveShadow>
+      <bufferAttribute
+        attach="geometry-attributes-color"
+        args={[colors, 3]}
+      />
+      <meshStandardMaterial 
+        vertexColors 
+        roughness={0.9}
+        metalness={0.1}
+        emissive={isNight ? 0x050510 : 0x000000}
+      />
+    </mesh>
   );
 }
 
@@ -553,7 +661,10 @@ function SceneContent({ weatherCode, useMesh }: { weatherCode: number; useMesh?:
         <MountainMeshFlat isNight={sun.isNight} />
       )}
       
-      {/* Water - made of particles */}
+      {/* Surrounding Land */}
+      <LandMesh isNight={sun.isNight} />
+      
+      {/* Water - made of particles representing the 5 lakes */}
       <WaterParticles isNight={sun.isNight} />
       
       {/* Clouds - Volumetric */}
