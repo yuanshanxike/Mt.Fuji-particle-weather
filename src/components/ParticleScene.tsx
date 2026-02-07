@@ -631,29 +631,39 @@ function CameraController() {
       }
     };
 
-    // Mobile touch support
+    // Mobile touch support with mode locking to prevent "jumping"
     let touchStartY = 0;
+    let touchMode: 'camera' | 'scroll' | null = null;
+
     const handleTouchStart = (e: TouchEvent) => {
       touchStartY = e.touches[0].clientY;
+      touchMode = null; // Reset mode on new touch
     };
 
     const handleTouchMove = (e: TouchEvent) => {
       const touchY = e.touches[0].clientY;
       const deltaY = touchStartY - touchY; // Positive = swipe up (scroll down)
       
-      if (deltaY > 0) { // Swiping up (trying to scroll down / zoom out)
-        if (zoomRef.current > -1) {
-          zoomRef.current = Math.max(-1, zoomRef.current - deltaY * 0.005);
-          if (e.cancelable) e.preventDefault();
-        }
-      } else if (deltaY < 0) { // Swiping down (trying to scroll up / zoom in)
-        if (window.scrollY <= 10) {
-          if (zoomRef.current < 1) {
-            zoomRef.current = Math.min(1, zoomRef.current - deltaY * 0.005);
-            if (e.cancelable) e.preventDefault();
-          }
+      // Determine mode if not set
+      if (!touchMode && Math.abs(deltaY) > 2) {
+        if (deltaY > 0) { // Trying to scroll down
+          // If not at max zoom out, lock to camera
+          touchMode = zoomRef.current > -1.001 ? 'camera' : 'scroll';
+        } else { // Trying to scroll up
+          // If page is at top AND not at max zoom in, lock to camera
+          touchMode = (window.scrollY <= 10 && zoomRef.current < 0.999) ? 'camera' : 'scroll';
         }
       }
+
+      if (touchMode === 'camera') {
+        if (deltaY > 0) { // Zooming out
+          zoomRef.current = Math.max(-1, zoomRef.current - deltaY * 0.005);
+        } else { // Zooming in
+          zoomRef.current = Math.min(1, zoomRef.current - deltaY * 0.005);
+        }
+        if (e.cancelable) e.preventDefault();
+      }
+      
       touchStartY = touchY;
     };
     
