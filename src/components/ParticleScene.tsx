@@ -597,10 +597,11 @@ function AmbientParticles({ weatherCode, isNight }: { weatherCode: number; isNig
   );
 }
 
-// Camera Controller
+// Camera Controller with Zoom and Tilt logic
 function CameraController() {
   const { camera } = useThree();
   const mouseRef = useRef({ x: 0, y: 0 });
+  const zoomRef = useRef(0); // -1 (zoom out) to 1 (zoom in/top-down)
   
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -609,19 +610,62 @@ function CameraController() {
         y: (e.clientY / window.innerHeight - 0.5) * 2,
       };
     };
+
+    const handleWheel = (e: WheelEvent) => {
+      // Normalize wheel delta (e.deltaY > 0 is scroll down/zoom out)
+      const delta = e.deltaY * 0.001;
+      zoomRef.current = Math.max(-1, Math.min(1, zoomRef.current - delta));
+    };
     
     window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
+    window.addEventListener('wheel', handleWheel, { passive: true });
+    
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('wheel', handleWheel);
+    };
   }, []);
   
   useFrame(() => {
-    // Gentle camera movement based on mouse
-    const targetX = mouseRef.current.x * 2;
-    const targetY = mouseRef.current.y * 1 + 2;
+    const z = zoomRef.current;
     
-    camera.position.x += (targetX - camera.position.x) * 0.02;
-    camera.position.y += (targetY - camera.position.y) * 0.02;
-    camera.lookAt(0, 3, 0);
+    // Calculate base position based on zoom level
+    // Default (z=0): [0, 2, 25]
+    // Zoom Out (z=-1): [0, 15, 60] (Higher and further)
+    // Zoom In (z=1): [0, 25, 2] (High above, very close to center for top-down)
+    
+    let targetPosX, targetPosY, targetPosZ;
+    let lookAtY;
+
+    if (z < 0) {
+      // Interpolate between Zoom Out (-1) and Default (0)
+      const t = z + 1; // 0 to 1
+      targetPosY = THREE.MathUtils.lerp(15, 2, t);
+      targetPosZ = THREE.MathUtils.lerp(60, 25, t);
+      lookAtY = THREE.MathUtils.lerp(0, 3, t);
+    } else {
+      // Interpolate between Default (0) and Zoom In (1)
+      const t = z; // 0 to 1
+      targetPosY = THREE.MathUtils.lerp(2, 25, t);
+      targetPosZ = THREE.MathUtils.lerp(25, 2, t);
+      lookAtY = THREE.MathUtils.lerp(3, 5, t);
+    }
+
+    // Add gentle mouse movement offset
+    const mouseOffsetX = mouseRef.current.x * (2 + Math.abs(z) * 5);
+    const mouseOffsetY = mouseRef.current.y * (1 + Math.abs(z) * 2);
+    
+    targetPosX = mouseOffsetX;
+    targetPosY += mouseOffsetY;
+
+    // Smoothly move camera
+    camera.position.x += (targetPosX - camera.position.x) * 0.05;
+    camera.position.y += (targetPosY - camera.position.y) * 0.05;
+    camera.position.z += (targetPosZ - camera.position.z) * 0.05;
+    
+    // Smoothly update lookAt
+    const currentLookAt = new THREE.Vector3(0, lookAtY, 0);
+    camera.lookAt(currentLookAt);
   });
   
   return null;
