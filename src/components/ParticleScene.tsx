@@ -90,10 +90,10 @@ function MountainMesh({ isNight }: { isNight?: boolean }) {
   );
 }
 
-// Mountain Mesh (Flat Shaded / Low Poly) Component
+// Mountain Mesh (Wireframe / Points) Component
 function MountainMeshFlat({ isNight }: { isNight?: boolean }) {
-  const meshRef = useRef<THREE.Mesh>(null);
-  const segments = 64; // Lower segments for a more "mesh" look
+  const meshRef = useRef<THREE.Group>(null);
+  const segments = 64; 
   const size = 40;
   
   const { geometry, colors } = useMemo(() => {
@@ -104,8 +104,9 @@ function MountainMeshFlat({ isNight }: { isNight?: boolean }) {
     const colors = new Float32Array(pos.count * 3);
     const snowThreshold = 6;
     
-    const snowColorArr = isNight ? [0.81, 0.85, 0.88] : [1, 1, 1];
-    const baseColorArr = isNight ? [0.17, 0.20, 0.21] : [0.29, 0.30, 0.41];
+    // Adjusted colors for MUCH better wireframe visibility
+    const snowColorArr = isNight ? [0.8, 0.9, 1.0] : [1, 1, 1]; // Bright white/blue
+    const baseColorArr = isNight ? [0.01, 0.01, 0.05] : [0.05, 0.05, 0.1]; // Nearly black
 
     for (let i = 0; i < pos.count; i++) {
       const x = pos.getX(i);
@@ -121,24 +122,26 @@ function MountainMeshFlat({ isNight }: { isNight?: boolean }) {
       colors[i * 3 + 2] = color[2];
     }
     
-    geo.computeVertexNormals();
     return { geometry: geo, colors };
   }, [isNight]);
 
   return (
-    <mesh ref={meshRef} geometry={geometry} receiveShadow castShadow>
-      <bufferAttribute
-        attach="geometry-attributes-color"
-        args={[colors, 3]}
-      />
-      <meshStandardMaterial 
-        vertexColors 
-        flatShading={true} // Crucial for "untextured mesh" look
-        roughness={0.8}
-        metalness={0.2}
-        emissive={isNight ? 0x050510 : 0x000000}
-      />
-    </mesh>
+    <group ref={meshRef}>
+      {/* The wireframe lines */}
+      <mesh geometry={geometry}>
+        <bufferAttribute
+          attach="geometry-attributes-color"
+          args={[colors, 3]}
+        />
+        <meshBasicMaterial 
+          vertexColors 
+          wireframe 
+          transparent 
+          opacity={isNight ? 0.5 : 0.8}
+          depthWrite={false}
+        />
+      </mesh>
+    </group>
   );
 }
 
