@@ -104,8 +104,9 @@ function MountainMeshFlat({ isNight }: { isNight?: boolean }) {
     const colors = new Float32Array(pos.count * 3);
     const snowThreshold = 6;
     
-    const snowColorArr = isNight ? [0.81, 0.85, 0.88] : [1, 1, 1];
-    const baseColorArr = isNight ? [0.17, 0.20, 0.21] : [0.29, 0.30, 0.41];
+    // Adjusted colors for better wireframe visibility
+    const snowColorArr = isNight ? [0.6, 0.7, 0.8] : [1, 1, 1];
+    const baseColorArr = isNight ? [0.05, 0.05, 0.1] : [0.1, 0.1, 0.15]; // Much darker for the base
 
     for (let i = 0; i < pos.count; i++) {
       const x = pos.getX(i);
@@ -136,24 +137,9 @@ function MountainMeshFlat({ isNight }: { isNight?: boolean }) {
           vertexColors 
           wireframe 
           transparent 
-          opacity={0.4}
-          blending={THREE.AdditiveBlending}
+          opacity={isNight ? 0.3 : 0.5}
         />
       </mesh>
-      {/* The vertices/points */}
-      <points geometry={geometry}>
-        <bufferAttribute
-          attach="geometry-attributes-color"
-          args={[colors, 3]}
-        />
-        <pointsMaterial 
-          vertexColors 
-          size={0.08} 
-          transparent 
-          opacity={0.8}
-          sizeAttenuation
-        />
-      </points>
     </group>
   );
 }
