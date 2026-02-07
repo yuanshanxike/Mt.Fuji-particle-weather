@@ -612,13 +612,32 @@ function CameraController() {
     };
 
     const handleWheel = (e: WheelEvent) => {
-      // Normalize wheel delta (e.deltaY > 0 is scroll down/zoom out)
-      const delta = e.deltaY * 0.001;
-      zoomRef.current = Math.max(-1, Math.min(1, zoomRef.current - delta));
+      const isZoomingOut = e.deltaY > 0;
+      const isZoomingIn = e.deltaY < 0;
+      
+      if (isZoomingOut) {
+        if (zoomRef.current > -1) {
+          // If not at max zoom out, consume the scroll for camera
+          const delta = e.deltaY * 0.001;
+          zoomRef.current = Math.max(-1, zoomRef.current - delta);
+          e.preventDefault();
+        }
+        // If already at -1, let the default scroll happen (page scrolls down)
+      } else if (isZoomingIn) {
+        if (window.scrollY <= 10) { // Small buffer for "top of page"
+          if (zoomRef.current < 1) {
+            // If at the top of page and not max zoom in, consume for camera
+            const delta = e.deltaY * 0.001;
+            zoomRef.current = Math.min(1, zoomRef.current - delta);
+            e.preventDefault();
+          }
+        }
+        // If page is scrolled down, let default scroll happen (page scrolls up)
+      }
     };
     
     window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('wheel', handleWheel, { passive: true });
+    window.addEventListener('wheel', handleWheel, { passive: false });
     
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
