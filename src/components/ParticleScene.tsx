@@ -104,9 +104,9 @@ function MountainMeshFlat({ isNight }: { isNight?: boolean }) {
     const colors = new Float32Array(pos.count * 3);
     const snowThreshold = 6;
     
-    // Adjusted colors for better wireframe visibility
-    const snowColorArr = isNight ? [0.6, 0.7, 0.8] : [1, 1, 1];
-    const baseColorArr = isNight ? [0.05, 0.05, 0.1] : [0.1, 0.1, 0.15]; // Much darker for the base
+    // Adjusted colors for MUCH better wireframe visibility
+    const snowColorArr = isNight ? [0.8, 0.9, 1.0] : [1, 1, 1]; // Bright white/blue
+    const baseColorArr = isNight ? [0.01, 0.01, 0.05] : [0.05, 0.05, 0.1]; // Nearly black
 
     for (let i = 0; i < pos.count; i++) {
       const x = pos.getX(i);
@@ -137,7 +137,8 @@ function MountainMeshFlat({ isNight }: { isNight?: boolean }) {
           vertexColors 
           wireframe 
           transparent 
-          opacity={isNight ? 0.3 : 0.5}
+          opacity={isNight ? 0.5 : 0.8}
+          depthWrite={false}
         />
       </mesh>
     </group>
