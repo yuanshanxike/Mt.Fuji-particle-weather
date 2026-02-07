@@ -90,92 +90,55 @@ function MountainMesh({ isNight }: { isNight?: boolean }) {
   );
 }
 
-// Mountain Particles Component
-function MountainParticles({ isNight }: { isNight?: boolean }) {
-  const meshRef = useRef<THREE.InstancedMesh>(null);
-  const particleCount = 8000;
+// Mountain Mesh (Flat Shaded / Low Poly) Component
+function MountainMeshFlat({ isNight }: { isNight?: boolean }) {
+  const meshRef = useRef<THREE.Mesh>(null);
+  const segments = 64; // Lower segments for a more "mesh" look
+  const size = 40;
   
-  const { positions, scales } = useMemo(() => {
-    const positions: number[] = [];
-    const scales: number[] = [];
+  const { geometry, colors } = useMemo(() => {
+    const geo = new THREE.PlaneGeometry(size, size, segments, segments);
+    geo.rotateX(-Math.PI / 2);
     
-    for (let i = 0; i < particleCount; i++) {
-      // Random position in a circle
-      const angle = Math.random() * Math.PI * 2;
-      const radius = Math.random() * 18;
-      const x = Math.cos(angle) * radius;
-      const z = Math.sin(angle) * radius;
-      
-      // Get mountain height at this position
-      const height = getMountainHeight(x, z);
-      
-      // Distribute particles vertically up to the height
-      const y = Math.random() * height;
-      
-      positions.push(x, y - 5, z);
-      
-      // Scale based on position (smaller particles higher up)
-      const scale = 0.08 + Math.random() * 0.06;
-      scales.push(scale);
-    }
+    const pos = geo.attributes.position;
+    const colors = new Float32Array(pos.count * 3);
+    const snowThreshold = 6;
     
-    return { positions, scales };
-  }, []);
-  
-  const dummy = useMemo(() => new THREE.Object3D(), []);
-  
-  useFrame((state) => {
-    if (!meshRef.current) return;
-    
-    const time = state.clock.elapsedTime;
-    
-    // Subtle mountain breathing animation
-    for (let i = 0; i < particleCount; i++) {
-      const idx = i * 3;
-      const x = positions[idx];
-      const y = positions[idx + 1];
-      const z = positions[idx + 2];
-      
-      dummy.position.set(
-        x + Math.sin(time * 0.2 + y * 0.1) * 0.02,
-        y,
-        z + Math.cos(time * 0.15 + x * 0.1) * 0.02
-      );
-      dummy.scale.setScalar(scales[i]);
-      dummy.updateMatrix();
-      meshRef.current!.setMatrixAt(i, dummy.matrix);
-    }
-    
-    meshRef.current.instanceMatrix.needsUpdate = true;
-  });
+    const snowColorArr = isNight ? [0.81, 0.85, 0.88] : [1, 1, 1];
+    const baseColorArr = isNight ? [0.17, 0.20, 0.21] : [0.29, 0.30, 0.41];
 
-  // Set mountain color - darker at night with snow top
-  useEffect(() => {
-    if (!meshRef.current) return;
-    
-    const color = new THREE.Color();
-    const snowThreshold = 6; // Height threshold for snow top
-    
-    for (let i = 0; i < particleCount; i++) {
-      const y = positions[i * 3 + 1];
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i);
+      const z = pos.getZ(i);
+      const h = getMountainHeight(x, z);
+      pos.setY(i, h - 5);
       
-      if (y > snowThreshold) {
-        // Snow top
-        color.set(isNight ? 0xd0d9e1 : 0xffffff);
-      } else {
-        // Mountain base
-        color.set(isNight ? 0x2d3436 : 0x4a4e69);
-      }
-      meshRef.current.setColorAt(i, color);
+      const isSnow = h > snowThreshold;
+      const color = isSnow ? snowColorArr : baseColorArr;
+      
+      colors[i * 3] = color[0];
+      colors[i * 3 + 1] = color[1];
+      colors[i * 3 + 2] = color[2];
     }
-    meshRef.current.instanceColor!.needsUpdate = true;
-  }, [isNight, positions]);
-  
+    
+    geo.computeVertexNormals();
+    return { geometry: geo, colors };
+  }, [isNight]);
+
   return (
-    <instancedMesh ref={meshRef} args={[undefined, undefined, particleCount]}>
-      <sphereGeometry args={[1, 4, 4]} />
-      <meshPhongMaterial emissive={isNight ? 0x050510 : 0x000000} />
-    </instancedMesh>
+    <mesh ref={meshRef} geometry={geometry} receiveShadow castShadow>
+      <bufferAttribute
+        attach="geometry-attributes-color"
+        args={[colors, 3]}
+      />
+      <meshStandardMaterial 
+        vertexColors 
+        flatShading={true} // Crucial for "untextured mesh" look
+        roughness={0.8}
+        metalness={0.2}
+        emissive={isNight ? 0x050510 : 0x000000}
+      />
+    </mesh>
   );
 }
 
@@ -583,11 +546,11 @@ function SceneContent({ weatherCode, useMesh }: { weatherCode: number; useMesh?:
         castShadow
       />
       
-      {/* Mountain - Mesh or Particles */}
+      {/* Mountain - Mesh or Flat Mesh */}
       {useMesh ? (
         <MountainMesh isNight={sun.isNight} />
       ) : (
-        <MountainParticles isNight={sun.isNight} />
+        <MountainMeshFlat isNight={sun.isNight} />
       )}
       
       {/* Water - made of particles */}

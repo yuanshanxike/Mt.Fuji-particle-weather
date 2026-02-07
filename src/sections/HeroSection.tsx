@@ -128,7 +128,7 @@ export default function HeroSection({ weather }: HeroSectionProps) {
           className="flex items-center gap-2 bg-white/10 backdrop-blur-xl border border-white/20 hover:bg-white/20 transition-all px-4 py-2 rounded-full text-white text-sm font-medium shadow-2xl"
         >
           {useMesh ? <Layers className="w-4 h-4" /> : <Boxes className="w-4 h-4" />}
-          <span>切换至{useMesh ? '粒子' : '网格'}</span>
+          <span>切换至{useMesh ? '硬边' : '平滑'}模式</span>
         </button>
       </div>
 
