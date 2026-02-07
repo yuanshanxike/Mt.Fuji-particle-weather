@@ -613,35 +613,60 @@ function CameraController() {
 
     const handleWheel = (e: WheelEvent) => {
       const isZoomingOut = e.deltaY > 0;
-      const isZoomingIn = e.deltaY < 0;
       
       if (isZoomingOut) {
         if (zoomRef.current > -1) {
-          // If not at max zoom out, consume the scroll for camera
           const delta = e.deltaY * 0.001;
           zoomRef.current = Math.max(-1, zoomRef.current - delta);
-          e.preventDefault();
+          if (e.cancelable) e.preventDefault();
         }
-        // If already at -1, let the default scroll happen (page scrolls down)
-      } else if (isZoomingIn) {
-        if (window.scrollY <= 10) { // Small buffer for "top of page"
+      } else {
+        if (window.scrollY <= 10) {
           if (zoomRef.current < 1) {
-            // If at the top of page and not max zoom in, consume for camera
             const delta = e.deltaY * 0.001;
             zoomRef.current = Math.min(1, zoomRef.current - delta);
-            e.preventDefault();
+            if (e.cancelable) e.preventDefault();
           }
         }
-        // If page is scrolled down, let default scroll happen (page scrolls up)
       }
+    };
+
+    // Mobile touch support
+    let touchStartY = 0;
+    const handleTouchStart = (e: TouchEvent) => {
+      touchStartY = e.touches[0].clientY;
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      const touchY = e.touches[0].clientY;
+      const deltaY = touchStartY - touchY; // Positive = swipe up (scroll down)
+      
+      if (deltaY > 0) { // Swiping up (trying to scroll down / zoom out)
+        if (zoomRef.current > -1) {
+          zoomRef.current = Math.max(-1, zoomRef.current - deltaY * 0.005);
+          if (e.cancelable) e.preventDefault();
+        }
+      } else if (deltaY < 0) { // Swiping down (trying to scroll up / zoom in)
+        if (window.scrollY <= 10) {
+          if (zoomRef.current < 1) {
+            zoomRef.current = Math.min(1, zoomRef.current - deltaY * 0.005);
+            if (e.cancelable) e.preventDefault();
+          }
+        }
+      }
+      touchStartY = touchY;
     };
     
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('wheel', handleWheel, { passive: false });
+    window.addEventListener('touchstart', handleTouchStart, { passive: true });
+    window.addEventListener('touchmove', handleTouchMove, { passive: false });
     
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('wheel', handleWheel);
+      window.removeEventListener('touchstart', handleTouchStart);
+      window.removeEventListener('touchmove', handleTouchMove);
     };
   }, []);
   
