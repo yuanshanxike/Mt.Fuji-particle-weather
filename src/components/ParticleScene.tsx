@@ -90,10 +90,10 @@ function MountainMesh({ isNight }: { isNight?: boolean }) {
   );
 }
 
-// Mountain Mesh (Flat Shaded / Low Poly) Component
+// Mountain Mesh (Wireframe / Points) Component
 function MountainMeshFlat({ isNight }: { isNight?: boolean }) {
-  const meshRef = useRef<THREE.Mesh>(null);
-  const segments = 64; // Lower segments for a more "mesh" look
+  const meshRef = useRef<THREE.Group>(null);
+  const segments = 64; 
   const size = 40;
   
   const { geometry, colors } = useMemo(() => {
@@ -121,24 +121,40 @@ function MountainMeshFlat({ isNight }: { isNight?: boolean }) {
       colors[i * 3 + 2] = color[2];
     }
     
-    geo.computeVertexNormals();
     return { geometry: geo, colors };
   }, [isNight]);
 
   return (
-    <mesh ref={meshRef} geometry={geometry} receiveShadow castShadow>
-      <bufferAttribute
-        attach="geometry-attributes-color"
-        args={[colors, 3]}
-      />
-      <meshStandardMaterial 
-        vertexColors 
-        flatShading={true} // Crucial for "untextured mesh" look
-        roughness={0.8}
-        metalness={0.2}
-        emissive={isNight ? 0x050510 : 0x000000}
-      />
-    </mesh>
+    <group ref={meshRef}>
+      {/* The wireframe lines */}
+      <mesh geometry={geometry}>
+        <bufferAttribute
+          attach="geometry-attributes-color"
+          args={[colors, 3]}
+        />
+        <meshBasicMaterial 
+          vertexColors 
+          wireframe 
+          transparent 
+          opacity={0.4}
+          blending={THREE.AdditiveBlending}
+        />
+      </mesh>
+      {/* The vertices/points */}
+      <points geometry={geometry}>
+        <bufferAttribute
+          attach="geometry-attributes-color"
+          args={[colors, 3]}
+        />
+        <pointsMaterial 
+          vertexColors 
+          size={0.08} 
+          transparent 
+          opacity={0.8}
+          sizeAttenuation
+        />
+      </points>
+    </group>
   );
 }
 
